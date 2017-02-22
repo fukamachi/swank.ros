@@ -1,0 +1,33 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#| Start a swank server
+exec ros -Q -- $0 "$@"
+|#
+(progn ;;init forms
+  (ql:quickload :swank :silent t))
+
+(defpackage #:ros.script.roswell/swank.ros
+  (:use #:cl))
+(in-package #:ros.script.roswell/swank.ros)
+
+(defun starts-with (prefix value)
+  (and (<= (length prefix) (length value))
+       (string= prefix value :end2 (length prefix))))
+
+(defun parse-argv (argv)
+  (let (port)
+    (loop while argv
+          for arg = (pop argv)
+          if (or (equal arg "--port")
+                 (equal arg "-p"))
+            do (setf port (parse-integer (pop argv) :junk-allowed t))
+          else
+            do (format *error-output* "~&Invalid argument: ~S~%" arg)
+               (uiop:quit 1))
+    port))
+
+(defun main (&rest argv)
+  (let ((port (or (parse-argv argv) 4005)))
+    (in-package :cl-user)
+    (swank:create-server :port port :style nil)))
+;;; vim: set ft=lisp lisp:
