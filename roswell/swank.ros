@@ -10,24 +10,63 @@ exec ros -Q -- $0 "$@"
   (:use #:cl))
 (in-package #:ros.script.roswell/swank.ros)
 
-(defun starts-with (prefix value)
-  (and (<= (length prefix) (length value))
-       (string= prefix value :end2 (length prefix))))
-
-(defun parse-argv (argv)
-  (let (port)
-    (loop while argv
-          for arg = (pop argv)
-          if (or (equal arg "--port")
-                 (equal arg "-p"))
-            do (setf port (parse-integer (pop argv) :junk-allowed t))
-          else
-            do (format *error-output* "~&Invalid argument: ~S~%" arg)
-               (uiop:quit 1))
-    port))
+(defmacro parse-argv ((argv) &body options)
+  (let ((i (gensym)))
+    `(let ,(cons
+            (list argv argv)
+            (mapcar (lambda (x)
+                      `(,(getf x :var) ,(getf x :default)))
+                    options))
+       (loop while ,argv
+             for ,i = (pop ,argv)
+             unless (cond
+                      ,@(loop for x in options
+                              collect `((member ,i ',(getf x :option) :test 'equal)
+                                        (setf ,(getf x :var) ,(getf x :convert))
+                                        t))
+                      ((equal ,i "--help")
+                       (format *error-output* "~&~A~%"
+                               ,(format nil
+                                        "usage: ~A ~{~A~^ ~}"
+                                        (ignore-errors (file-namestring *load-pathname*))
+                                        (mapcar (lambda(x)
+                                                  (format nil "[~A <~A>]"
+                                                          (first (getf x :option))
+                                                          (getf x :description)))
+                                                options)))
+                       (uiop:quit 0)))
+               do (format *error-output* "~&Invalid argument: ~S~%" ,i)
+                  (uiop:quit 1))
+       ,`(list
+          ,@(loop for x in options
+                  for name = (getf x :var)
+                  collect (intern (string name) :keyword)
+                  collect name)))))
 
 (defun main (&rest argv)
-  (let ((port (or (parse-argv argv) 4005)))
-    (in-package :cl-user)
-    (swank:create-server :port port :style nil)))
+  (in-package :cl-user)
+  (apply 'swank:create-server
+         (parse-argv (argv)
+           (:var port
+            :default 4005
+            :option ("-p" "--port")
+            :convert (parse-integer (pop argv) :junk-allowed t)
+            :description "port")
+           (:var interface
+            :default "127.0.0.1"
+            :option ("-i" "--interface")
+            :convert (pop argv)
+            :description "interface")
+           (:var style
+            :default nil
+            :option ("-s" "--style")
+            :convert (let ((s (pop argv)))
+                       (cond
+                         ((equal s "spawn") :spawn)
+                         ((equal s "sigio") :sigio)
+                         ((equal s "fd-handler") :fd-handler)
+                         ((equal s "nil") nil)
+                         ((equal s "default") swank:*communication-style*)))
+            :description "style")))
+  (loop (sleep 10)))
 ;;; vim: set ft=lisp lisp:
