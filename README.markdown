@@ -20,5 +20,5 @@ In Emacs, you can connect to the REPL with `M-x slime-connect<RET>localhost<RET>
 ## Installation
 
 ```
-$ ros install fukamachi/swank-ros
+$ ros install fukamachi/swank.ros
 ```
