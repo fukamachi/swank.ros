@@ -8,7 +8,10 @@ Small Roswell script for starting a swank server.
 $ swank
 ;; Swank started at port: 4005.
 
-$ swank --port 4005
+$ swank --port 4008
+;; Swank started at port: 4008.
+
+$ swank --interface 0.0.0.0 ;; invoke swank to be connected from other hosts.
 ;; Swank started at port: 4005.
 ```
 
